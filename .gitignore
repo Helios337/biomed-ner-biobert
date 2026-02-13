@@ -1,0 +1,23 @@
+# .gitignore
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+
+# Virtual Environments
+venv/
+env/
+
+# Project specific ignores
+data/raw/*
+data/processed/*
+!data/.gitkeep
+
+models/*
+!models/.gitkeep
+
+logs/*
+!logs/.gitkeep
+
+# OS generated files
+.DS_Store
