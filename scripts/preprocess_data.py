@@ -1,29 +1,26 @@
 import os
 from datasets import load_dataset
-import json
 
 def download_and_save():
-    # We will use BC5CDR (Chemicals/Diseases) and NCBI-Disease
-    datasets_to_fetch = {
-        "bc5cdr": "tner/bc5cdr",
-        "ncbi_disease": "ncbi/ncbi_disease"
-    }
-
-    raw_dir = "./data/raw"
+    # Using the standard BioCreative V CDR dataset
+    dataset_name = "tner/bc5cdr"
+    raw_dir = os.path.abspath("./data/raw/bc5cdr")
+    
+    print(f"🚀 Starting download for {dataset_name}...")
     os.makedirs(raw_dir, exist_ok=True)
 
-    for name, hf_path in datasets_to_fetch.items():
-        print(f"Fetching {name}...")
-        dataset = load_dataset(hf_path)
-        
-        dataset_path = os.path.join(raw_dir, name)
-        os.makedirs(dataset_path, exist_ok=True)
+    try:
+        # download the dataset
+        dataset = load_dataset(dataset_name)
         
         for split in dataset.keys():
-            # Save as JSON for human-readability and easy inspection
-            output_file = os.path.join(dataset_path, f"{split}.json")
+            output_file = os.path.join(raw_dir, f"{split}.json")
+            # Convert to pandas then to json for a clean structure
             dataset[split].to_json(output_file)
-            print(f"  - Saved {split} to {output_file}")
+            print(f"✅ Saved {split} split to: {output_file}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
     download_and_save()
