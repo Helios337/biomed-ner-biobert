@@ -20,16 +20,21 @@ class NCBIDiseaseDataLoader:
         self.label2id = {v: k for k, v in self.id2label.items()}
         self.dataset: DatasetDict = None
 
-    def load_data(self) -> DatasetDict:
+   def load_data(self) -> DatasetDict:
         """Loads the dataset and ensures splits are present."""
         logger.info(f"Downloading/Loading dataset: {self.dataset_name}")
-        self.dataset = load_dataset(self.dataset_name)
+        
+        # ADD trust_remote_code=True HERE
+        self.dataset = load_dataset(self.dataset_name, trust_remote_code=True)
         
         # Verify expected splits
         expected_splits = ["train", "validation", "test"]
         for split in expected_splits:
             if split not in self.dataset:
                 raise ValueError(f"Missing required split: {split}")
+                
+        logger.info(f"Successfully loaded splits: {list(self.dataset.keys())}")
+        return self.dataset
                 
         logger.info(f"Successfully loaded splits: {list(self.dataset.keys())}")
         return self.dataset
@@ -101,3 +106,4 @@ if __name__ == "__main__":
     
     # 4. Print sample
     loader.print_sample("train", index=0)
+
