@@ -20,22 +20,19 @@ class NCBIDiseaseDataLoader:
         self.label2id = {v: k for k, v in self.id2label.items()}
         self.dataset: DatasetDict = None
 
-   def load_data(self) -> DatasetDict:
+    def load_data(self) -> DatasetDict:
         """Loads the dataset and ensures splits are present."""
         logger.info(f"Downloading/Loading dataset: {self.dataset_name}")
-        
-        # ADD trust_remote_code=True HERE
-        self.dataset = load_dataset(self.dataset_name, trust_remote_code=True)
-        
+
+        # Use a specific revision to load the dataset, as the latest version might have issues with loading scripts
+        self.dataset = load_dataset(self.dataset_name, revision='refs/convert/parquet')
+
         # Verify expected splits
         expected_splits = ["train", "validation", "test"]
         for split in expected_splits:
             if split not in self.dataset:
                 raise ValueError(f"Missing required split: {split}")
-                
-        logger.info(f"Successfully loaded splits: {list(self.dataset.keys())}")
-        return self.dataset
-                
+
         logger.info(f"Successfully loaded splits: {list(self.dataset.keys())}")
         return self.dataset
 
@@ -48,16 +45,16 @@ class NCBIDiseaseDataLoader:
         """
         logger.info(f"Validating BIO integrity for split: {split}...")
         data = self.dataset[split]
-        
+
         for idx, row in enumerate(data):
             tokens = row['tokens']
             tags = row['ner_tags']
-            
+
             # Constraint 1: Length match
             if len(tokens) != len(tags):
                 logger.error(f"Length mismatch at index {idx}: {len(tokens)} tokens vs {len(tags)} tags.")
                 return False
-                
+
             # Constraint 2: BIO transitions
             for i, tag_id in enumerate(tags):
                 current_tag = self.id2label[tag_id]
@@ -69,7 +66,7 @@ class NCBIDiseaseDataLoader:
                     if prev_tag == "O":
                         logger.error(f"Corruption at index {idx}: I-Disease follows O.")
                         return False
-                        
+
         logger.info(f"Validation passed for {split}. No corruption detected.")
         return True
 
@@ -77,11 +74,11 @@ class NCBIDiseaseDataLoader:
         """Prints a human-readable aligned sample from the dataset."""
         if self.dataset is None:
             self.load_data()
-            
+
         sample = self.dataset[split][index]
         tokens = sample['tokens']
         tags = [self.id2label[tag_id] for tag_id in sample['ner_tags']]
-        
+
         print(f"\n--- Sample from {split} dataset (Index {index}) ---")
         print(f"{'Token':<20} | {'BIO Label'}")
         print("-" * 35)
@@ -93,17 +90,16 @@ class NCBIDiseaseDataLoader:
 # --- Execution Example ---
 if __name__ == "__main__":
     loader = NCBIDiseaseDataLoader()
-    
+
     # 1. Load data
     dataset = loader.load_data()
-    
+
     # 2. Print splits shapes
     for split in dataset.keys():
         print(f"Split '{split}' contains {len(dataset[split])} sentences.")
-        
+
     # 3. Validate integrity
     loader.validate_bio_sequence("train")
-    
+
     # 4. Print sample
     loader.print_sample("train", index=0)
-
