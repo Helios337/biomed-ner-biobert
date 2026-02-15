@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
 from seqeval.metrics import classification_report as seqeval_report
 from seqeval.metrics import f1_score, precision_score, recall_score
@@ -127,3 +127,4 @@ class BioNEREvaluator:
             entities.append({"entity": " ".join(current_entity), "type": current_type})
             
         return entities
+
