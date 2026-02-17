@@ -2,11 +2,11 @@
 
 This repository contains a research-grade pipeline for extracting disease entities from complex biomedical literature (PubMed abstracts) using **BioBERT**. It features strict entity-level evaluation, robust subword label alignment, and a production-ready inference pipeline mapping transformer predictions back to exact character offsets.
 
-## 📌 Problem Statement
+## Problem Statement
 
 Extracting structured information from unstructured biomedical text is a foundational challenge in bioinformatics. Traditional Natural Language Processing (NLP) models struggle with medical literature due to heavily abbreviated clinical acronyms, complex multi-word genetic disorders, and a massive Out-Of-Vocabulary (OOV) rate. Furthermore, token-level accuracy metrics often create an illusion of high performance by rewarding the dominant "Outside" (O) class. This project solves these issues by fine-tuning a domain-specific language model (BioBERT) and evaluating it strictly on exact entity-span matches.
 
-## 📊 Dataset Description
+## Dataset Description
 
 The model is trained and evaluated on the **NCBI Disease Corpus**, a gold-standard biomedical NER dataset.
 
@@ -15,7 +15,7 @@ The model is trained and evaluated on the **NCBI Disease Corpus**, a gold-standa
 * **Classes:** 3 ( `O`, `B-Disease`, `I-Disease`).
 * **Splits:** Train (5,433 sentences), Validation (923 sentences), Test (940 sentences).
 
-## 🧠 Architecture Explanation
+## Architecture Explanation
 
 The core engine is `dmis-lab/biobert-base-cased-v1.1`, a bidirectional transformer pre-trained on large-scale biomedical corpora (PubMed & PMC).
 
@@ -24,7 +24,7 @@ The core engine is `dmis-lab/biobert-base-cased-v1.1`, a bidirectional transform
 3. **Classification Head:** A linear token classification layer maps the 768-dimensional contextualized embeddings to the 3-dimensional BIO logit space.
 4. **Inference Pipeline:** Reconstructs the exact character `(start, end)` offsets from the subword predictions to guarantee perfectly formatted string extractions.
 
-## ⚙️ Experimental Setup
+## Experimental Setup
 
 * **Framework:** PyTorch & HuggingFace Transformers
 * **Optimizer:** AdamW (Decoupled Weight Decay) to stabilize transformer regularization.
@@ -32,7 +32,7 @@ The core engine is `dmis-lab/biobert-base-cased-v1.1`, a bidirectional transform
 * **Batching:** Dynamic padding via HuggingFace DataCollators to optimize GPU VRAM usage.
 * **Evaluation Framework:** `seqeval` for strict entity-level (span-based) evaluation. A prediction is only a True Positive if both boundaries and entity type match perfectly.
 
-## 📈 Results
+## Results
 
 The transformer architecture was benchmarked against a traditional TF-IDF + Logistic Regression baseline to demonstrate the necessity of bidirectional context and subword morphology.
 
@@ -43,7 +43,7 @@ The transformer architecture was benchmarked against a traditional TF-IDF + Logi
 
 *Note: The massive discrepancy between Token and Entity F1 in the baseline highlights why token-level metrics are mathematically misleading for sequence labeling tasks.*
 
-## 🔍 Error Analysis Summary
+## Error Analysis Summary
 
 A structured diagnostic tool was run on the evaluation set, categorizing the remaining 12.8% error margin:
 
@@ -52,7 +52,7 @@ A structured diagnostic tool was run on the evaluation set, categorizing the rem
 * **Long Sentence Errors (~20%):** Degraded attention resolution in sentences exceeding 50 tokens.
 * **Spurious Entities (~15%):** Hallucinating disease entities out of generic symptom descriptions.
 
-## 🚀 Future Work
+## Future Work
 
 To push the Entity-Level F1 score above 90%, the following architectural upgrades are planned:
 
@@ -60,7 +60,7 @@ To push the Entity-Level F1 score above 90%, the following architectural upgrade
 2. **UMLS Data Augmentation:** Using the Unified Medical Language System metathesaurus to inject synonym replacements during training, fortifying the model against Rare Entity drop-off.
 3. **Sliding Window Inference:** Implementing an overlapping 30-word window strategy to preserve attention density on extremely long clinical texts.
 
-## 💻 Installation & Usage
+## Installation & Usage
 
 **1. Clone the repository and install dependencies:**
 
@@ -90,3 +90,4 @@ text = "Patients often present with severe colorectal cancer and benign desmoid 
 print(pipeline.predict(text))
 
 ```
+
