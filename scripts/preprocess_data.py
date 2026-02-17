@@ -7,7 +7,7 @@ def main():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     raw_data_dir = os.path.join(base_dir, "data", "raw", "bc5cdr")
     
-    print(f"📂 Target Directory: {raw_data_dir}")
+    print(f"Target Directory: {raw_data_dir}")
     os.makedirs(raw_data_dir, exist_ok=True)
 
     # 2. Download from Hugging Face
@@ -19,16 +19,15 @@ def main():
         for split in dataset.keys():
             file_path = os.path.join(raw_data_dir, f"{split}.json")
             dataset[split].to_json(file_path)
-            print(f"✅ Created: {file_path}")
+            print(f"Created: {file_path}")
             
     except Exception as e:
-        print(f"❌ Error during download: {e}")
+        print(f"Error during download: {e}")
         sys.exit(1)
 
     # 3. Final Verification
     files = os.listdir(raw_data_dir)
-    print(f"\n🚀 Success! Files in raw/bc5cdr: {files}")
+    print(f"\nSuccess! Files in raw/bc5cdr: {files}")
 
 if __name__ == "__main__":
     main()
-
