@@ -175,14 +175,14 @@ class BioNERTrainer:
             if val_metrics["f1"] > best_f1:
                 best_f1 = val_metrics["f1"]
                 epochs_without_improvement = 0
-                logger.info(f"🏆 New best F1 ({best_f1:.4f}). Saving checkpoint to {self.output_dir}...")
+                logger.info(f"New best F1 ({best_f1:.4f}). Saving checkpoint to {self.output_dir}...")
                 self.model.save_pretrained(self.output_dir)
             else:
                 epochs_without_improvement += 1
                 logger.warning(f"No improvement. Early stopping patience: {epochs_without_improvement}/{self.patience}")
 
             if epochs_without_improvement >= self.patience:
-                logger.error(f"🛑 Early stopping triggered at epoch {epoch}. Training halted.")
+                logger.error(f"Early stopping triggered at epoch {epoch}. Training halted.")
                 break
 
         logger.info(f"Training Complete. Best Validation F1: {best_f1:.4f}")
