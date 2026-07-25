@@ -1,147 +1,166 @@
+"""Production-ready inference pipeline for Biomedical Named Entity Recognition."""
+
 import torch
 import json
 import logging
-from typing import List, Dict, Any
-from transformers import AutoTokenizer, AutoModelForTokenClassification
+from typing import List, Dict, Any, Optional
+from transformers import BertTokenizerFast, BertForTokenClassification, BertConfig
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
+
 
 class BioNERPipeline:
     """
     Production-ready inference pipeline for Biomedical Named Entity Recognition.
-    Handles raw text ingestion, subword merging, and JSON structuring.
+
+    Handles raw text ingestion, subword merging, offset reconstruction,
+    and JSON-structured output for downstream integration.
+
+    Usage::
+
+        pipeline = BioNERPipeline(model_path="./models/best_biobert")
+        result = pipeline.predict("Patient presented with colorectal cancer.")
+        print(result)
     """
+
     def __init__(self, model_path: str = "dmis-lab/biobert-base-cased-v1.1"):
-        logger.info(f"Loading NER Pipeline from: {model_path}")
+        logger.info("Loading NER Pipeline from: %s", model_path)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
-        # Load tokenizer with use_fast=True to enable offset mapping
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
-        self.model = AutoModelForTokenClassification.from_pretrained(model_path)
+
+        self.tokenizer = BertTokenizerFast.from_pretrained(model_path)
+        config = BertConfig.from_pretrained(model_path, num_labels=3,
+                                                         id2label={0: "O", 1: "B-Disease", 2: "I-Disease"},
+                                                         label2id={"O": 0, "B-Disease": 1, "I-Disease": 2})
+        self.model = BertForTokenClassification.from_pretrained(model_path, config=config)
         self.model.to(self.device)
         self.model.eval()
 
-        # Assuming standard BIO tags for Disease
-        self.id2label = self.model.config.id2label
-        if not self.id2label:
-            # Fallback if config doesn't have it saved
-            self.id2label = {0: "O", 1: "B-Disease", 2: "I-Disease"}
+        self.id2label = self.model.config.id2label or {0: "O", 1: "B-Disease", 2: "I-Disease"}
 
     def predict(self, text: str) -> str:
         """
-        Takes a raw string, predicts entities, merges subwords, 
-        and returns a formatted JSON string.
+        Predict disease entities in a raw text string.
+
+        Args:
+            text: Raw biomedical text (e.g., PubMed abstract).
+
+        Returns:
+            JSON string with ``text`` and ``entities`` list. Each entity has
+            ``entity_type``, ``start_char``, ``end_char``, and ``text`` fields.
         """
-        if not text.strip():
+        if not text or not text.strip():
             return json.dumps({"text": text, "entities": []})
 
-        # 1. Tokenize with offset mapping
-        inputs = self.tokenizer(
-            text, 
-            return_tensors="pt", 
-            return_offsets_mapping=True, 
-            return_word_ids=True,
-            truncation=True
-        )
-        
-        # Extract metadata and move tensors to GPU
-        offset_mapping = inputs.pop("offset_mapping")[0].numpy()
-        word_ids = inputs.pop("word_ids")
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        return json.dumps(self._predict_structured(text), indent=4)
 
-        # 2. Forward Pass
+    def predict_structured(self, text: str) -> Dict[str, Any]:
+        """
+        Predict disease entities and return a Python dict instead of JSON.
+
+        Args:
+            text: Raw biomedical text.
+
+        Returns:
+            Dictionary with keys ``text`` and ``entities``.
+        """
+        return self._predict_structured(text)
+
+    def _predict_structured(self, text: str) -> Dict[str, Any]:
+        """Internal method: predict and return structured dict."""
+        # 1. Tokenize with offset mapping (NOT return_word_ids — that's not a valid arg)
+        tokenized = self.tokenizer(
+            text,
+            return_tensors="pt",
+            return_offsets_mapping=True,
+            truncation=True,
+        )
+
+        # Extract metadata before moving to device
+        offset_mapping = tokenized.pop("offset_mapping")[0].numpy()
+        inputs = {k: v.to(self.device) for k, v in tokenized.items()}
+
+        # Get word_ids from the tokenizer output
         with torch.no_grad():
             outputs = self.model(**inputs)
             logits = outputs.logits
             predictions = torch.argmax(logits, dim=-1)[0].cpu().numpy()
 
-        # 3. Align subwords to words
-        # We take the predicted label of the FIRST subword of every word
-        word_to_label = {}
-        word_to_offsets = {}
+        # 2. Align subwords to words using offset mapping
+        word_to_label: Dict[int, str] = {}
+        word_to_offsets: Dict[int, List[int]] = {}
+
+        # Re-tokenize to get word_ids (since we popped offset_mapping)
+        word_ref = self.tokenizer(text, return_offsets_mapping=True, truncation=True)
+        word_ids = word_ref.word_ids()
 
         for idx, word_idx in enumerate(word_ids):
             if word_idx is None:
-                continue  # Skip special tokens ([CLS], [SEP])
-                
+                continue  # Skip special tokens
+
             start_char, end_char = offset_mapping[idx]
             if start_char == end_char:
                 continue
-                
-            if word_idx not in word_to_label:
-                # First subword of the word dictates the label
-                word_to_label[word_idx] = self.id2label[predictions[idx]]
-                word_to_offsets[word_idx] = [start_char, end_char]
-            else:
-                # Extend the character offset to encompass subsequent subwords
-                word_to_offsets[word_idx][1] = end_char
 
-        # 4. Stitch BIO tags into contiguous entities
+            if word_idx not in word_to_label:
+                word_to_label[word_idx] = self.id2label[predictions[idx]]
+                word_to_offsets[word_idx] = [int(start_char), int(end_char)]
+            else:
+                word_to_offsets[word_idx][1] = int(end_char)
+
+        # 3. Stitch BIO tags into contiguous entities
         entities = self._extract_entities(text, word_to_label, word_to_offsets)
 
-        # 5. Return structured JSON
-        result = {
-            "text": text,
-            "entities": entities
-        }
-        return json.dumps(result, indent=4)
+        return {"text": text, "entities": entities}
 
-    def _extract_entities(self, text: str, word_to_label: Dict[int, str], word_to_offsets: Dict[int, List[int]]) -> List[Dict[str, Any]]:
-        """
-        Parses word-level BIO tags and offsets into exact string matches.
-        """
-        entities = []
-        current_entity = None
+    def _extract_entities(
+        self,
+        text: str,
+        word_to_label: Dict[int, str],
+        word_to_offsets: Dict[int, List[int]],
+    ) -> List[Dict[str, Any]]:
+        """Parse word-level BIO tags and offsets into exact string matches."""
+        entities: List[Dict[str, Any]] = []
+        current_entity: Optional[Dict[str, Any]] = None
 
-        # Ensure we iterate in the correct order of words
-        sorted_words = sorted(word_to_label.keys())
-
-        for word_idx in sorted_words:
+        for word_idx in sorted(word_to_label.keys()):
             tag = word_to_label[word_idx]
             start_char, end_char = word_to_offsets[word_idx]
 
             if tag.startswith("B-"):
                 if current_entity:
                     entities.append(current_entity)
-                
                 entity_type = tag.split("-")[1]
                 current_entity = {
                     "entity_type": entity_type,
                     "start_char": start_char,
                     "end_char": end_char,
-                    "text": text[start_char:end_char]
+                    "text": text[start_char:end_char],
                 }
-            
             elif tag.startswith("I-") and current_entity and current_entity["entity_type"] == tag.split("-")[1]:
-                # Expand the current entity's boundary
                 current_entity["end_char"] = end_char
-                # Re-slice the original text to perfectly capture spaces/punctuation
                 current_entity["text"] = text[current_entity["start_char"]:end_char]
-                
             else:
                 if current_entity:
                     entities.append(current_entity)
                     current_entity = None
 
-        # Catch trailing entity
         if current_entity:
             entities.append(current_entity)
 
         return entities
 
+
 # --- Execution Example ---
 if __name__ == "__main__":
-    # In a real scenario, model_path would point to "./models/best_biobert"
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
     pipeline = BioNERPipeline()
-    
+
     sample_abstract = (
         "We investigated the role of the APC gene in familial adenomatous polyposis. "
         "Patients often present with severe colorectal cancer and benign desmoid tumors. "
         "Treatment with non-steroidal anti-inflammatory drugs showed reduction in polyp burden."
     )
-    
+
     logger.info("Running inference on sample abstract...\n")
-    json_output = pipeline.predict(sample_abstract)
-    print(json_output)
+    print(pipeline.predict(sample_abstract))

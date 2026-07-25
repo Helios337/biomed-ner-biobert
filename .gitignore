@@ -1,23 +1,46 @@
-# .gitignore
-
-# Python artifacts
+# Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+dist/
+build/
 
-# Virtual Environments
+# Virtual environments
 venv/
+.venv/
 env/
 
-# Project specific ignores
+# Model artifacts
+models/*.bin
+models/*.safetensors
+models/*.pth
+!models/.gitkeep
+
+# Data
 data/raw/*
 data/processed/*
 !data/.gitkeep
 
-models/*
-!models/.gitkeep
-
+# Logs
 logs/*
 !logs/.gitkeep
 
-# OS generated files
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+test_outputs/
+
+# MLflow
+mlruns/

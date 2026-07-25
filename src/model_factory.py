@@ -1,73 +1,78 @@
+"""Factory for BioBERT model instantiation and configuration."""
+
 import torch
 import logging
-from transformers import AutoConfig, AutoModelForTokenClassification
+from transformers import AutoConfig, BertForTokenClassification
 
 logger = logging.getLogger(__name__)
 
+
 class BioNERModelFactory:
     """
-    A factory class to instantiate, configure, and prepare BioBERT 
-    for token classification in a research environment.
+    Factory class for instantiating and configuring BioBERT for token classification.
+
+    Usage::
+
+        factory = BioNERModelFactory()
+        model = factory.create_model()
+        factory.print_architecture(model)
     """
+
     def __init__(self, model_checkpoint: str = "dmis-lab/biobert-base-cased-v1.1"):
         self.model_checkpoint = model_checkpoint
-        
-        # Define the exact label space for the NCBI Disease dataset
+
+        # NCBI Disease label space
         self.id2label = {0: "O", 1: "B-Disease", 2: "I-Disease"}
         self.label2id = {v: k for k, v in self.id2label.items()}
         self.num_labels = len(self.id2label)
-        
-        # Detect GPU availability automatically
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    def create_model(self) -> AutoModelForTokenClassification:
+    def create_model(self) -> BertForTokenClassification:
         """
-        Loads the pre-trained weights and initializes the classification head.
+        Load pretrained BioBERT and attach a token classification head.
+
+        Returns:
+            Model ready for training or inference on the configured device.
         """
-        logger.info(f"Initializing model from checkpoint: {self.model_checkpoint}")
-        logger.info(f"Targeting device: {self.device}")
-        
-        # 1. Load the configuration
-        # Passing label mappings explicitly ensures the model's output layer 
-        # is sized perfectly (K=3) and metadata is preserved in the saved model.
+        logger.info("Initializing model from checkpoint: %s", self.model_checkpoint)
+        logger.info("Targeting device: %s", self.device)
+
         config = AutoConfig.from_pretrained(
             self.model_checkpoint,
             num_labels=self.num_labels,
             id2label=self.id2label,
-            label2id=self.label2id
+            label2id=self.label2id,
         )
-        
-        # 2. Instantiate the model with the customized config
-        model = AutoModelForTokenClassification.from_pretrained(
-            self.model_checkpoint,
-            config=config
+        # BioBERT v1.1 config lacks model_type — set explicitly for Transformers>=4.45
+        if not hasattr(config, "model_type") or config.model_type is None:
+            config.model_type = "bert"
+
+        model = BertForTokenClassification.from_pretrained(
+            self.model_checkpoint, config=config
         )
-        
-        # 3. Move model to the correct hardware accelerator
         model.to(self.device)
         logger.info("Model successfully loaded and moved to device.")
-        
         return model
 
-    def print_architecture(self, model: AutoModelForTokenClassification):
-        """Prints the model blueprint, highlighting the classification head."""
+    def print_architecture(self, model: BertForTokenClassification) -> None:
+        """Print the model architecture and verify the classification head."""
         print("\n=== BioBERT Token Classification Architecture ===")
         print(model)
-        
-        # Isolate and print just the classifier head to verify dimensions
+
         print("\n=== Classification Head Details ===")
-        print(f"Expected Input Features (d): {model.classifier.in_features}")
+        print(f"Input Features (d): {model.classifier.in_features}")
         print(f"Output Classes (K): {model.classifier.out_features}")
-        
-        assert model.classifier.out_features == self.num_labels, \
-            f"Architecture mismatch! Expected {self.num_labels} outputs, got {model.classifier.out_features}."
+
+        assert (
+            model.classifier.out_features == self.num_labels
+        ), f"Expected {self.num_labels} outputs, got {model.classifier.out_features}."
+
 
 # --- Execution Example ---
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    
+
     factory = BioNERModelFactory()
-    biobert_ner = factory.create_model()
-    
-    # Verify architecture
-    factory.print_architecture(biobert_ner)
+    model = factory.create_model()
+    factory.print_architecture(model)

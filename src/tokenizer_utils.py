@@ -1,5 +1,5 @@
 import logging
-from transformers import AutoTokenizer, PreTrainedTokenizerFast
+from transformers import BertTokenizerFast
 from typing import List, Dict, Any, Union
 
 logger = logging.getLogger(__name__)
@@ -12,10 +12,9 @@ class BioTokenizer:
         self.model_checkpoint = model_checkpoint
         logger.info(f"Loading tokenizer: {self.model_checkpoint}")
         
-        # We MUST use use_fast=True to access the word_ids() alignment mapping
-        self.tokenizer: PreTrainedTokenizerFast = AutoTokenizer.from_pretrained(
-            self.model_checkpoint, 
-            use_fast=True
+        # BertTokenizerFast gives us word_ids() access for label alignment
+        self.tokenizer: BertTokenizerFast = BertTokenizerFast.from_pretrained(
+            self.model_checkpoint
         )
         self.ignore_index = -100
 

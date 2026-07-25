@@ -1,26 +1,21 @@
-# --- Deep Learning Framework ---
-# Note: For GPU support, install PyTorch with the correct CUDA version first.
-# See instructions below.
+# ── Core Dependencies ────────────────────────────────────────
 torch>=2.0.0
-
-# --- Hugging Face Ecosystem ---
 transformers>=4.30.0
-tokenizers>=0.13.3
 datasets>=2.13.0
+sentencepiece>=0.1.99
 
-# --- Evaluation & Metrics ---
-# seqeval is mandatory for strict entity-level span evaluation (BIO tags)
+# ── Evaluation ───────────────────────────────────────────────
 seqeval>=1.2.2
 scikit-learn>=1.2.2
 
-# --- Data Manipulation & Math ---
+# ── Data & Math ──────────────────────────────────────────────
 numpy>=1.24.0
 pandas>=2.0.0
 
-# --- Visualization ---
-matplotlib>=3.7.1
+# ── Visualization ────────────────────────────────────────────
+matplotlib>=3.7.0
 seaborn>=0.12.2
 
-# --- Utilities ---
+# ── Utilities ────────────────────────────────────────────────
 tqdm>=4.65.0
 PyYAML>=6.0

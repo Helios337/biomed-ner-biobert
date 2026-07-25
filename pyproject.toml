@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "biomed-ner-biobert"
+version = "1.0.0"
+description = "Biomedical Named Entity Recognition using BioBERT with strict entity-level evaluation"
+readme = "README.md"
+authors = [{ name = "Aditya Gupta", email = "akg1082004@gmail.com" }]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.0",
+    "transformers>=4.30.0",
+    "datasets>=2.13.0",
+    "seqeval>=1.2.2",
+    "scikit-learn>=1.2.2",
+    "numpy>=1.24.0",
+    "tqdm>=4.65.0",
+    "pyyaml>=6.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Helios337/biomed-ner-biobert"
+Repository = "https://github.com/Helios337/biomed-ner-biobert"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["src", "src.*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
